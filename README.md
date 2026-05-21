@@ -8,8 +8,8 @@ Fecha de entrega: miércoles, 3 de junio de 2026, 23:59:59
 
 | Nombre completo | Código | Correo institucional |
 |---|---|---|
-| Juan ... | 0000000 | juan@correounivalle.edu.co |
-| ... | ... | ... |
+| Juan Jose Ospina Sanchez | 2559711 | juan.jose.ospina@correounivalle.edu.co |
+| Juan David Quintero Garcia | 2559710 | juan.quintero.garcia@correounivalle.edu.co |
 | ... | ... | ... |
 | ... | ... | ... |
 
