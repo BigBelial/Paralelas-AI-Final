@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mancala / Kalah(6,4)</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <header>
+        <h1>Mancala / Kalah(6,4)</h1>
+        <p>Cliente web — scaffold inicial</p>
+    </header>
+
+    <main>
+        <section class="board" aria-label="Tablero de Kalah">
+            <!-- Lado superior (jugador 1, índices 7..12 en reversa) + kalaha 13 a la izquierda -->
+            <div class="kalaha kalaha-rival" data-idx="13">0</div>
+            <div class="row row-rival">
+                <div class="pit" data-idx="12">0</div>
+                <div class="pit" data-idx="11">0</div>
+                <div class="pit" data-idx="10">0</div>
+                <div class="pit" data-idx="9">0</div>
+                <div class="pit" data-idx="8">0</div>
+                <div class="pit" data-idx="7">0</div>
+            </div>
+            <div class="row row-propio">
+                <div class="pit" data-idx="0">0</div>
+                <div class="pit" data-idx="1">0</div>
+                <div class="pit" data-idx="2">0</div>
+                <div class="pit" data-idx="3">0</div>
+                <div class="pit" data-idx="4">0</div>
+                <div class="pit" data-idx="5">0</div>
+            </div>
+            <div class="kalaha kalaha-propio" data-idx="6">0</div>
+        </section>
+
+        <section class="controls">
+            <label>
+                Algoritmo:
+                <select id="algo">
+                    <option value="alphabeta">Alfa-Beta</option>
+                    <option value="mcts">MCTS</option>
+                </select>
+            </label>
+            <label>
+                Profundidad / Simulaciones:
+                <input id="budget" type="number" value="8" min="1" />
+            </label>
+            <label>
+                Hilos:
+                <input id="threads" type="number" value="4" min="1" max="64" />
+            </label>
+            <button id="btn-reset">Reiniciar tablero</button>
+            <button id="btn-move">Pedir jugada al backend</button>
+        </section>
+
+        <section class="result">
+            <h2>Respuesta del backend</h2>
+            <pre id="result-json">(sin datos aún)</pre>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

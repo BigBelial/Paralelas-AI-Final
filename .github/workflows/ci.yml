@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test-motor:
+    name: Build & test motor (C++/OpenMP)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake g++ libgomp1
+      - name: Configure CMake
+        working-directory: motor
+        run: cmake -S src -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        working-directory: motor
+        run: cmake --build build --parallel
+      - name: Run unit tests (ctest)
+        working-directory: motor
+        run: ctest --test-dir build --output-on-failure
+      - name: Smoke bench (alphabeta, 4 threads)
+        working-directory: motor
+        run: |
+          OMP_NUM_THREADS=4 ./build/mancala_bench \
+              --algo alphabeta --depth 8 --threads 4 \
+              --positions tests/suite.txt
+      - name: Smoke bench (mcts, 4 threads)
+        working-directory: motor
+        run: |
+          OMP_NUM_THREADS=4 ./build/mancala_bench \
+              --algo mcts --simulations 5000 --threads 4 \
+              --positions tests/suite.txt
+
+  test-backend:
+    name: Test backend (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install deps
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Run pytest
+        working-directory: backend
+        run: pytest tests/ -v
+
+  docker-images:
+    name: Build & publish Docker images
+    runs-on: ubuntu-latest
+    needs: [build-and-test-motor, test-backend]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build motor image
+        uses: docker/build-push-action@v6
+        with:
+          context: motor
+          push: false
+          tags: mancala-motor:ci
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          tags: mancala-backend:ci
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: false
+          tags: mancala-frontend:ci
+      # --- Publicación a GHCR ---
+      # Para activar: quitar `if: false` y configurar secretos si el push
+      # va a un registro distinto. Tag debe ser inmutable (no 'latest').
+      - name: Log in to GHCR
+        if: false
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push images
+        if: false
+        run: |
+          docker tag mancala-motor:ci    ghcr.io/${{ github.repository }}/mancala-motor:${{ github.sha }}
+          docker tag mancala-backend:ci  ghcr.io/${{ github.repository }}/mancala-backend:${{ github.sha }}
+          docker tag mancala-frontend:ci ghcr.io/${{ github.repository }}/mancala-frontend:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}/mancala-motor:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}/mancala-backend:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}/mancala-frontend:${{ github.sha }}
+
+  # --- SonarQube ---
+  # La integración está DECLARADA en YAML (NO como plugin del marketplace).
+  # Para activarla, definir SONAR_TOKEN y SONAR_HOST_URL en Repository
+  # secrets y quitar `if: false`.
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    needs: [build-and-test-motor, test-backend]
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
