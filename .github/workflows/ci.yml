@@ -125,13 +125,22 @@ jobs:
           # OJO: cada token de `args` se separa por espacios, así que NO se pueden
           # usar valores con espacios (p. ej. projectName); ese nombre se configura
           # en la UI de SonarCloud.
+          #
+          # El motor en C++ NO se incluye en el análisis: SonarCloud requiere un
+          # build-wrapper para C/C++ (su AutoScan falla sin él), lo cual queda
+          # fuera del alcance de esta entrega. Se analizan el backend (Python) y
+          # el frontend (JS). El C/C++ se deshabilita por suffixes para que el
+          # sensor CFamily no se ejecute.
           args: >
             -Dsonar.projectKey=BigBelial_Paralelas-AI-Final
             -Dsonar.organization=mancala-kalah
             -Dsonar.projectVersion=0.2.0
-            -Dsonar.sources=motor/src,backend/app,frontend/public
-            -Dsonar.tests=motor/tests,backend/tests
-            -Dsonar.exclusions=**/build/**,**/node_modules/**,**/__pycache__/**
+            -Dsonar.sources=backend/app,frontend/public
+            -Dsonar.tests=backend/tests
+            -Dsonar.exclusions=**/build/**,**/node_modules/**,**/__pycache__/**,motor/**
+            -Dsonar.c.file.suffixes=-
+            -Dsonar.cpp.file.suffixes=-
+            -Dsonar.objc.file.suffixes=-
             -Dsonar.sourceEncoding=UTF-8
       - name: Sonar omitido (sin SONAR_TOKEN)
         if: ${{ env.SONAR_TOKEN == '' }}

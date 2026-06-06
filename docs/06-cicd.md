@@ -42,8 +42,15 @@ Declarada **íntegramente en YAML** con `sonarsource/sonarqube-scan-action@v2`,
 **no** como plugin del marketplace (requisito explícito de la rúbrica). Toda la
 configuración del proyecto se pasa como argumentos `-Dsonar.*` al scanner dentro
 del propio workflow (no hay `sonar-project.properties`): claves del proyecto,
-rutas de fuentes (`motor/src`, `backend/app`, `frontend/public`), rutas de tests
-y exclusiones.
+rutas de fuentes (`backend/app`, `frontend/public`), rutas de tests y exclusiones.
+
+> **Decisión técnica (motor C++ fuera del análisis Sonar).** SonarCloud requiere
+> un *build-wrapper* para analizar C/C++; sin él, su analizador automático
+> (CFamily AutoScan) falla en el runner. Como instalar y orquestar el
+> build-wrapper queda fuera del alcance de esta entrega, el análisis Sonar cubre
+> el **backend (Python)** y el **frontend (JS)**, y el C/C++ se deshabilita con
+> `-Dsonar.{c,cpp,objc}.file.suffixes=-` y excluyendo `motor/**`. La calidad del
+> motor C++ se respalda con sus pruebas unitarias en CI (`ctest`).
 
 El job expone el token a nivel de job y **se salta solo si no hay `SONAR_TOKEN`**,
 para que el CI quede en verde mientras no esté configurado; en cuanto se cargue el
@@ -66,9 +73,12 @@ steps:
       args: >
         -Dsonar.projectKey=BigBelial_Paralelas-AI-Final
         -Dsonar.organization=mancala-kalah
-        -Dsonar.sources=motor/src,backend/app,frontend/public
-        -Dsonar.tests=motor/tests,backend/tests
-        -Dsonar.exclusions=**/build/**,**/node_modules/**,**/__pycache__/**
+        -Dsonar.sources=backend/app,frontend/public
+        -Dsonar.tests=backend/tests
+        -Dsonar.exclusions=**/build/**,**/node_modules/**,**/__pycache__/**,motor/**
+        -Dsonar.c.file.suffixes=-
+        -Dsonar.cpp.file.suffixes=-
+        -Dsonar.objc.file.suffixes=-
         -Dsonar.sourceEncoding=UTF-8
 ```
 
