@@ -75,18 +75,19 @@ Implementado:
 - **Manifiestos Kubernetes**: en `deploy/local/k8s/` (kind/minikube) y `deploy/cloud/` (EKS/AKS/GKE) con requests/limits, probes, ConfigMap, Ingress + HPA.
 - **CI/CD**: workflow de GitHub Actions con compilación del motor, tests del motor y del backend, construcción y publicación de imágenes a GHCR (en push a `main`) y escaneo de SonarCloud declarado en YAML.
 
-Pendiente (requiere hardware/cuentas del grupo, no se puede inventar):
+- **Instrumentación (docs/03)**: barrido T(p)/S(p)/E(p) a `depth=8` y `depth=12`,
+  tabla de pérdida de podas (49 % más nodos en paralelo), gráfica de speedup y
+  capturas de `/usr/bin/time -v` y `htop`. **Hecho.**
 
-- Correr el barrido de benchmarks en una máquina Linux con OpenMP real y pegar
-  el CSV en `docs/03-paralelizacion.md`. Hay un script que lo automatiza:
-  `motor/bench/run_benchmarks.sh`.
-- Generar las capturas de `perf` / `htop` / `time` para `docs/03`.
-- Elegir proveedor cloud (EKS/AKS/GKE), poner el tag inmutable de las imágenes
-  en `deploy/cloud/*.yaml`, desplegar y pegar la salida de `kubectl get pods,svc`.
-- Crear el proyecto en SonarCloud y cargar `SONAR_TOKEN` / `SONAR_HOST_URL` como
-  *Repository secrets* (el workflow ya invoca el scanner).
+Pendiente (requiere cuentas del grupo / despliegue, no se puede inventar):
+
+- Elegir proveedor cloud (este proyecto usa **GCP GKE**), publicar las imágenes con
+  tag inmutable en el registro y reemplazarlo en `deploy/cloud/*.yaml`, desplegar y
+  pegar la salida de `kubectl get pods,svc,deploy` en `docs/05-despliegue-nube.md`.
+- Crear el proyecto en SonarCloud, cargar `SONAR_TOKEN` como *Repository secret* y
+  ajustar `sonar.projectKey` / `sonar.organization` en `.github/workflows/ci.yml`.
 - Correr la prueba de carga (`deploy/local/loadtest/`) y pegar p50/p95/throughput
-  en `docs/07-analisis-comparativo.md`.
+  en `docs/07-analisis-comparativo.md` (local variando hilos, nube variando réplicas).
 - Completar la tabla de integrantes de arriba (no hacerlo penaliza un 10%).
 
 ## Configuración del frontend según el entorno

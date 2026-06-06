@@ -71,6 +71,8 @@ perf.data
 perf.data.old
 callgrind.out.*
 *.prof
+bench_resultados.md
+motor/bench_resultados.md
 
 # --- Archivos del proyecto que no van al repo ---
 project context/

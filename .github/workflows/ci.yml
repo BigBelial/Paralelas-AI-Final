@@ -123,8 +123,8 @@ jobs:
         uses: sonarsource/sonarqube-scan-action@v2
         with:
           args: >
-            -Dsonar.projectKey=mancala-kalah
-            -Dsonar.organization=AJUSTAR-org-slug
+            -Dsonar.projectKey=BigBelial_Paralelas-AI-Final
+            -Dsonar.organization=mancala-kalah
             -Dsonar.projectName=Motor Paralelo de Mancala (Kalah)
             -Dsonar.projectVersion=0.2.0
             -Dsonar.sources=motor/src,backend/app,frontend/public

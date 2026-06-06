@@ -2,12 +2,14 @@
 
 ## Resumen de resultados
 
-> Cerrar con 2-3 frases ancladas en las cifras de
-> [03-paralelizacion.md](03-paralelizacion.md) y
-> [07-analisis-comparativo.md](07-analisis-comparativo.md): el mejor speedup
-> obtenido en Alfa-Beta a `depth=12` fue **\_\_×** con **8** hilos (eficiencia
-> **\_\_**). En la nube, pasar de 1 a 3 réplicas mejoró el throughput de **\_\_** a
-> **\_\_** req/s.
+El mejor speedup obtenido en Alfa-Beta a `depth=12` fue **2.20×** con **8** hilos
+(eficiencia **0.28**), medido sobre la suite en una VM de 8 vCPU; el detalle está
+en [03-paralelizacion.md](03-paralelizacion.md). La eficiencia decreciente se
+explica por la pérdida de podas del root parallelism (la versión paralela explora
+un 49 % más de nodos que la secuencial) sumada al límite de núcleos físicos.
+
+> Pendiente de la nube: cerrar con el throughput observado al pasar de 1 a 3
+> réplicas del backend (ver [07-analisis-comparativo.md](07-analisis-comparativo.md)).
 
 El motor de Kalah(6,4) quedó funcional con Minimax + poda Alfa-Beta (el algoritmo
 exigido) paralelizado con OpenMP, expuesto por un backend FastAPI y consumido por

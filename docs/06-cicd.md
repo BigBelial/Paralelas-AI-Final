@@ -64,8 +64,8 @@ steps:
     uses: sonarsource/sonarqube-scan-action@v2
     with:
       args: >
-        -Dsonar.projectKey=mancala-kalah
-        -Dsonar.organization=AJUSTAR-org-slug
+        -Dsonar.projectKey=BigBelial_Paralelas-AI-Final
+        -Dsonar.organization=mancala-kalah
         -Dsonar.sources=motor/src,backend/app,frontend/public
         -Dsonar.tests=motor/tests,backend/tests
         -Dsonar.exclusions=**/build/**,**/node_modules/**,**/__pycache__/**
