@@ -110,7 +110,7 @@ jobs:
     # modo que basta con configurar SONAR_TOKEN.
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'http://localhost:9090' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -133,7 +133,6 @@ jobs:
           # sensor CFamily no se ejecute.
           args: >
             -Dsonar.projectKey=BigBelial_Paralelas-AI-Final
-            -Dsonar.organization=mancala-kalah
             -Dsonar.projectVersion=0.2.0
             -Dsonar.sources=backend/app,frontend/public
             -Dsonar.tests=backend/tests

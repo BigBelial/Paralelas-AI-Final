@@ -77,3 +77,20 @@ motor/bench_resultados.md
 # --- Archivos del proyecto que no van al repo ---
 project context/
 Proyecto.pdf
+
+# --- SonarQube ---
+.scannerwork/
+.sonar/
+**/report-task.txt
+sonar-scanner-*/
+
+# --- Cobertura ---
+coverage.xml
+*.xml
+
+# --- Resultados de benchmark ---
+motor/resultados/
+
+# --- Binarios del motor ---
+motor/build/
+EOF
