@@ -122,10 +122,12 @@ jobs:
         if: ${{ env.SONAR_TOKEN != '' }}
         uses: sonarsource/sonarqube-scan-action@v2
         with:
+          # OJO: cada token de `args` se separa por espacios, así que NO se pueden
+          # usar valores con espacios (p. ej. projectName); ese nombre se configura
+          # en la UI de SonarCloud.
           args: >
             -Dsonar.projectKey=BigBelial_Paralelas-AI-Final
             -Dsonar.organization=mancala-kalah
-            -Dsonar.projectName=Motor Paralelo de Mancala (Kalah)
             -Dsonar.projectVersion=0.2.0
             -Dsonar.sources=motor/src,backend/app,frontend/public
             -Dsonar.tests=motor/tests,backend/tests
