@@ -14,7 +14,8 @@ const BOT = 1;
 const KALAHA = [6, 13];
 const PITS_OF = [[0,1,2,3,4,5], [7,8,9,10,11,12]];
 
-/* ----------------- Reglas Kalah ----------------- */
+// Reglas de Kalah replicadas en el cliente para aplicar la jugada del humano
+// al instante, sin esperar al backend.
 
 function initialBoard() {
     const b = new Array(14).fill(0);
@@ -71,7 +72,7 @@ function applyMove(board, side, pit) {
     return { extraTurn, lastIdx: idx, captured };
 }
 
-/* ----------------- Estado del juego ----------------- */
+// Estado global de la partida en curso.
 
 const state = {
     board: initialBoard(),
@@ -80,7 +81,7 @@ const state = {
     waitingBot: false,
 };
 
-/* ----------------- Render ----------------- */
+// Dibujado del tablero y de los indicadores de estado.
 
 const $ = id => document.getElementById(id);
 
@@ -154,7 +155,7 @@ function showEndModal() {
     $('overlay').classList.remove('hidden');
 }
 
-/* ----------------- Turno del humano ----------------- */
+// Manejo del turno del jugador humano.
 
 function setupBoardClicks() {
     document.querySelectorAll('button.pit-own').forEach(el => {
@@ -189,7 +190,7 @@ function humanMove(pit) {
     }
 }
 
-/* ----------------- Turno del bot (vía backend) ----------------- */
+// Turno del bot: se pide la jugada al backend y se anima en el tablero.
 
 async function scheduleBotTurn() {
     state.waitingBot = true;
@@ -274,7 +275,7 @@ function updateStatsPanel(move) {
     }
 }
 
-/* ----------------- Control de UI ----------------- */
+// Controles de la interfaz: reinicio y cambio de algoritmo.
 
 function reset() {
     state.board = initialBoard();
@@ -303,7 +304,7 @@ function setupAlgoToggle() {
     onChange();
 }
 
-/* ----------------- Bootstrap ----------------- */
+// Arranque: registrar listeners y comenzar una partida nueva.
 
 setupBoardClicks();
 setupAlgoToggle();

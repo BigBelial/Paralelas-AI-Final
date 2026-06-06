@@ -2,20 +2,28 @@
 
 ## Reglas de Kalah(6,4)
 
-Variante estándar de Mancala con:
+Variante estándar de Mancala implementada en `motor/src/board.cpp`:
 
 - Tablero con **2 filas de 6 hoyos**, **4 semillas** inicialmente en cada hoyo.
 - Cada jugador tiene un **kalaha** (almacén) a su derecha.
-- En su turno, el jugador toma todas las semillas de uno de sus hoyos y las distribuye una a una en **sentido antihorario**, incluyendo su propio kalaha pero **saltando** el del oponente.
+- En su turno, el jugador toma todas las semillas de uno de sus hoyos y las
+  reparte una a una en **sentido antihorario**, incluyendo su propio kalaha pero
+  **saltando** el del oponente.
 - Si la última semilla cae en el kalaha propio → **turno extra**.
-- Si la última semilla cae en un hoyo propio vacío y el hoyo opuesto del rival contiene semillas → el jugador **captura** ambas hacia su kalaha.
-- El juego termina cuando uno de los lados queda vacío; el jugador con más semillas en su kalaha gana.
+- Si la última semilla cae en un hoyo propio que estaba vacío y el hoyo opuesto
+  del rival tiene semillas → **captura**: ambas (la que llegó más las del
+  opuesto) van al kalaha propio.
+- El juego termina cuando un lado queda sin semillas; las semillas que queden en
+  el otro lado se recogen a su kalaha y gana quien tenga más.
 
-Representación interna: arreglo de 14 enteros `board[0..13]` con orden canónico documentado en [01-arquitectura.md](01-arquitectura.md).
+Estas reglas se implementan en `Board::apply_move`, `Board::terminal`,
+`Board::collect_remaining` y `Board::winner`. La representación es un arreglo de
+14 enteros con el orden canónico documentado en [01-arquitectura.md](01-arquitectura.md).
 
-## Algoritmo 1 — Minimax con poda Alfa-Beta
+## Algoritmo — Minimax con poda Alfa-Beta
 
-Búsqueda en profundidad fija (`depth`) sobre el árbol de juego.
+Es el algoritmo exigido por el proyecto. Hace una búsqueda en profundidad fija
+(`depth`) sobre el árbol de juego (`motor/src/alphabeta.cpp`).
 
 ### Función de evaluación heurística
 
@@ -23,37 +31,61 @@ $$
 h(\text{estado}) = (\text{kalaha propio} - \text{kalaha rival}) + \alpha \cdot (\text{semillas lado propio} - \text{semillas lado rival})
 $$
 
-con $\alpha \in [0, 1]$ definido por el grupo.
+con $\alpha \in [0, 1]$ definido por el grupo. En esta entrega $\alpha = 0.1$: el
+diferencial de kalahas domina la evaluación (es la ventaja material segura) y el
+diferencial de semillas en el tablero actúa como desempate ligero. La evaluación
+devuelve un entero; un estado terminal se valora con el diferencial de kalahas
+multiplicado por 1000 para que ganar/perder pese mucho más que cualquier ventaja
+heurística intermedia.
+
+### Manejo del turno extra
+
+El turno extra rompe la alternancia estricta de Minimax (un jugador puede mover
+varias veces seguidas). Para manejarlo sin casos especiales, la búsqueda se hace
+siempre desde la perspectiva del lado de la raíz (`root_side`): en cada nodo se
+**maximiza** si mueve `root_side` y se **minimiza** si mueve el rival, leyendo el
+turno real del estado en lugar de asumir que alterna. Así un turno extra
+simplemente encadena dos nodos maximizadores (o dos minimizadores) seguidos.
 
 ### Pseudocódigo
 
 ```text
-funcion alphabeta(estado, depth, alpha, beta, maximizando):
-    si depth == 0 o estado.terminal():
+funcion alphabeta(estado, depth, alpha, beta, root_side):
+    si estado.terminal():
+        retornar diferencial_de_kalahas(estado, root_side) * 1000
+    si depth == 0:
         retornar h(estado)
+
+    maximizando = (estado.turno == root_side)
     si maximizando:
         valor = -INF
-        para cada movimiento legal m en estado:
-            valor = max(valor, alphabeta(aplicar(estado, m), depth-1, alpha, beta, false))
+        para cada movimiento legal m:
+            valor = max(valor, alphabeta(aplicar(estado, m), depth-1, alpha, beta, root_side))
             alpha = max(alpha, valor)
-            si beta <= alpha: break   # poda beta
+            si alpha >= beta: poda; break       # poda beta
         retornar valor
     si no:
         valor = +INF
-        para cada movimiento legal m en estado:
-            valor = min(valor, alphabeta(aplicar(estado, m), depth-1, alpha, beta, true))
-            beta = min(beta, valor)
-            si beta <= alpha: break   # poda alpha
+        para cada movimiento legal m:
+            valor = min(valor, alphabeta(aplicar(estado, m), depth-1, alpha, beta, root_side))
+            beta  = min(beta, valor)
+            si alpha >= beta: poda; break        # poda alpha
         retornar valor
 ```
 
 ### Criterio de corrección
 
-Árboles podados deben producir el **mismo movimiento óptimo** que Minimax sin poda a igual profundidad. Esta equivalencia se valida con la suite de pruebas unitarias.
+La poda no debe cambiar el resultado: a igual profundidad, Alfa-Beta debe
+producir el **mismo valor (y el mismo movimiento óptimo)** que Minimax sin poda.
+Esta equivalencia es uno de los criterios de la rúbrica y se verifica en las
+pruebas unitarias (ver más abajo).
 
-## Algoritmo 2 — Monte Carlo Tree Search (MCTS) con UCT
+## Algoritmo adicional — Monte Carlo Tree Search (MCTS) con UCT
 
-Búsqueda estocástica *anytime*: no necesita función de evaluación heurística. Cada movimiento se valora con simulaciones aleatorias (rollouts) hasta el final del juego.
+Además del algoritmo exigido se implementó MCTS (`motor/src/mcts.cpp`) como
+segundo motor de búsqueda, útil para comparar dos enfoques de paralelización.
+Es una búsqueda estocástica *anytime* que no necesita heurística: valora cada
+jugada con simulaciones aleatorias (rollouts) hasta el final.
 
 ### Política de selección UCT
 
@@ -61,34 +93,39 @@ $$
 UCT(n) = \frac{w_n}{N_n} + c \cdot \sqrt{\frac{\ln N_{\text{padre}}}{N_n}}
 $$
 
-con $w_n$ las victorias en simulaciones que pasaron por $n$, $N_n$ el número de visitas a $n$, y $c$ una constante de exploración (típicamente $c = \sqrt{2}$).
+con $w_n$ las victorias acumuladas en simulaciones que pasaron por $n$, $N_n$ el
+número de visitas a $n$ y $c$ la constante de exploración (por defecto
+$c = \sqrt{2}$).
 
-### Las cuatro fases canónicas
+### Las cuatro fases
 
 1. **Selección** — descender por UCT hasta una hoja.
-2. **Expansión** — agregar un hijo nuevo.
-3. **Simulación** — jugar al azar hasta el final.
-4. **Retropropagación** — actualizar $w$ y $N$ en el camino recorrido.
+2. **Expansión** — agregar un hijo no probado.
+3. **Simulación** — jugar al azar hasta el final del juego.
+4. **Retropropagación** — actualizar $w$ y $N$ en todo el camino recorrido.
 
-### Pseudocódigo
-
-```text
-funcion mcts(raiz, simulations):
-    para i en 1..simulations:
-        nodo = seleccion_uct(raiz)
-        hijo = expandir(nodo)
-        resultado = rollout(hijo.estado)
-        retropropagar(hijo, resultado)
-    retornar hijo_de(raiz) con mayor N
-```
+La jugada elegida es la del hijo de la raíz **más visitado** (criterio estándar).
 
 ### Criterio de corrección
 
-MCTS no garantiza el movimiento óptimo: su corrección es **estadística**. Se reporta la **tasa de coincidencia** entre la jugada de MCTS y la jugada óptima de Alfa-Beta sobre el mismo conjunto de posiciones, para presupuestos crecientes de simulaciones.
+MCTS no garantiza el movimiento óptimo: su corrección es **estadística**. Se
+comprueba que devuelve siempre una jugada legal y que, con presupuesto creciente
+de simulaciones, su tasa de coincidencia con la jugada óptima de Alfa-Beta sube.
 
 ## Suite de pruebas unitarias
 
-Ubicada en `motor/tests/`. Cómo ejecutarla:
+En `motor/tests/test_runner.cpp` (runner propio, sin framework externo). Cubre:
+
+- **Reglas**: tablero inicial, movimientos legales, siembra básica, turno extra
+  en kalaha, salto del kalaha rival, regla de captura, fin de juego y recogida.
+- **Equivalencia Alfa-Beta = Minimax**: para varias posiciones y profundidades
+  (3, 5, 7) el valor de Alfa-Beta coincide con el de un Minimax sin poda
+  programado aparte en el propio test.
+- **Paralelo = secuencial**: el valor de la búsqueda con 4 hilos coincide con el
+  de 1 hilo sobre la misma posición.
+- **MCTS**: devuelve una jugada legal y ejecuta rollouts.
+
+Cómo ejecutarla:
 
 ```bash
 cd motor
@@ -97,4 +134,13 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-> **Pendiente de completar**: implementación real de las reglas, suite de pruebas concretas, tabla de resultados de coincidencia MCTS vs. Alfa-Beta.
+Salida esperada (todas las comprobaciones en verde):
+
+```text
+[tests] 58/58 pasaron, 0 fallaron
+```
+
+> Evidencia de la equivalencia Alfa-Beta ↔ Minimax: el test
+> `test_alphabeta_equals_minimax_serial` falla si la poda cambia el valor del
+> nodo raíz respecto al Minimax exhaustivo, así que un `ctest` en verde es la
+> prueba de que la poda es correcta sobre el conjunto de posiciones de prueba.

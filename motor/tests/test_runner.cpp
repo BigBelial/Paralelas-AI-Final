@@ -26,7 +26,7 @@ static int g_total = 0;
 
 using namespace mancala;
 
-// ---------- Reglas Kalah ----------
+// Pruebas de las reglas de Kalah.
 
 void test_initial_board() {
     Board b = Board::initial();
@@ -120,7 +120,7 @@ void test_terminal_and_collect() {
     CHECK_EQ(b.winner(), 1);   // 12 > 10  -> gana p0
 }
 
-// ---------- Alpha-Beta vs Minimax (equivalencia) ----------
+// Pruebas de equivalencia entre Alfa-Beta y Minimax sin poda.
 
 // Minimax sin poda, para comparar.
 static int minimax_no_pruning(Board node, int depth, int root_side, double aw,
@@ -189,7 +189,7 @@ void test_alphabeta_serial_equals_parallel() {
     CHECK_EQ(r1.evaluation, r4.evaluation);
 }
 
-// ---------- MCTS coincidencia con Alpha-Beta ----------
+// Prueba de que MCTS devuelve una jugada legal y ejecuta rollouts.
 
 void test_mcts_converges_to_alphabeta_on_simple_position() {
     // Posición donde la jugada óptima es clara: el hoyo 2 da turno extra.

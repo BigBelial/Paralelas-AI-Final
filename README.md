@@ -2,7 +2,7 @@
 
 Curso: Infraestructuras Paralelas y Distribuidas — Universidad del Valle
 Docente: Carlos Andrés Delgado S., MSc — carlos.andres.delgado@correounivalle.edu.co
-Fecha de entrega: miércoles, 3 de junio de 2026, 23:59:59
+Fecha de entrega: miércoles, 10 de junio de 2026, 17:58:59 (push a la rama principal)
 
 ## Integrantes del grupo
 
@@ -75,14 +75,35 @@ Implementado:
 - **Frontend HTML/JS + nginx**: tablero Kalah interactivo que consume `/move`.
 - **Docker Compose**: levanta los 3 contenedores con un comando.
 - **Manifiestos Kubernetes**: en `deploy/local/k8s/` (kind/minikube) y `deploy/cloud/` (EKS/AKS/GKE) con requests/limits, probes, ConfigMap, Ingress + HPA.
-- **CI/CD**: workflow de GitHub Actions con compilación, tests, construcción de imágenes y placeholder de SonarQube.
+- **CI/CD**: workflow de GitHub Actions con compilación del motor, tests del motor y del backend, construcción y publicación de imágenes a GHCR (en push a `main`) y escaneo de SonarCloud declarado en YAML.
 
-Pendiente:
+Pendiente (requiere hardware/cuentas del grupo, no se puede inventar):
 
-- Llenar los `docs/*.md` con números reales de los benchmarks.
-- Activar SonarQube (quitar `if: false` en el workflow tras configurar secretos).
-- Elegir proveedor cloud y ajustar las anotaciones del Ingress.
-- Completar la tabla de integrantes en la sección de arriba.
+- Correr el barrido de benchmarks en una máquina Linux con OpenMP real y pegar
+  el CSV en `docs/03-paralelizacion.md`. Hay un script que lo automatiza:
+  `motor/bench/run_benchmarks.sh`.
+- Generar las capturas de `perf` / `htop` / `time` para `docs/03`.
+- Elegir proveedor cloud (EKS/AKS/GKE), poner el tag inmutable de las imágenes
+  en `deploy/cloud/*.yaml`, desplegar y pegar la salida de `kubectl get pods,svc`.
+- Crear el proyecto en SonarCloud y cargar `SONAR_TOKEN` / `SONAR_HOST_URL` como
+  *Repository secrets* (el workflow ya invoca el scanner).
+- Correr la prueba de carga (`deploy/local/loadtest/`) y pegar p50/p95/throughput
+  en `docs/07-analisis-comparativo.md`.
+- Completar la tabla de integrantes de arriba (no hacerlo penaliza un 10%).
+
+## Configuración del frontend según el entorno
+
+El cliente del navegador llama al backend **directamente** (con CORS). La URL del
+backend se resuelve en este orden:
+
+1. `window.MANCALA_API_BASE` si está definida en `frontend/public/config.js`.
+2. Si no, `http://<host-actual>:8000` (válido para Docker Compose).
+
+Ajusta `config.js` según dónde corra el backend:
+
+- Docker Compose: dejarlo vacío (usa el puerto 8000 del host).
+- Kubernetes local (NodePort): `http://<IP-del-nodo>:30080`.
+- Nube (Ingress en el mismo dominio): `/api`.
 
 ## Informe
 

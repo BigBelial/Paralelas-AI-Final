@@ -66,53 +66,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: Build motor image
-        uses: docker/build-push-action@v6
-        with:
-          context: motor
-          push: false
-          tags: mancala-motor:ci
-      - name: Build backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: backend
-          push: false
-          tags: mancala-backend:ci
-      - name: Build frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: frontend
-          push: false
-          tags: mancala-frontend:ci
-      # --- Publicación a GHCR ---
-      # Para activar: quitar `if: false` y configurar secretos si el push
-      # va a un registro distinto. Tag debe ser inmutable (no 'latest').
-      - name: Log in to GHCR
-        if: false
+
+      # En pull requests solo se construyen las imágenes (no hay credenciales de
+      # push); en push a main/master se publican a GHCR con un tag inmutable.
+      - name: Resolver prefijo de imágenes en minúsculas
+        id: img
+        run: echo "prefix=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Iniciar sesión en GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push images
-        if: false
-        run: |
-          docker tag mancala-motor:ci    ghcr.io/${{ github.repository }}/mancala-motor:${{ github.sha }}
-          docker tag mancala-backend:ci  ghcr.io/${{ github.repository }}/mancala-backend:${{ github.sha }}
-          docker tag mancala-frontend:ci ghcr.io/${{ github.repository }}/mancala-frontend:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/mancala-motor:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/mancala-backend:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/mancala-frontend:${{ github.sha }}
 
-  # --- SonarQube ---
-  # La integración está DECLARADA en YAML (NO como plugin del marketplace).
-  # Para activarla, definir SONAR_TOKEN y SONAR_HOST_URL en Repository
-  # secrets y quitar `if: false`.
+      - name: Imagen del motor
+        uses: docker/build-push-action@v6
+        with:
+          context: motor
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.img.outputs.prefix }}/mancala-motor:${{ github.sha }}
+
+      - name: Imagen del backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.img.outputs.prefix }}/mancala-backend:${{ github.sha }}
+
+      - name: Imagen del frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.img.outputs.prefix }}/mancala-frontend:${{ github.sha }}
+
+  # Análisis estático con SonarCloud declarado en YAML (no por plugin del
+  # marketplace). Requiere SONAR_TOKEN y SONAR_HOST_URL como Repository secrets
+  # y un sonar-project.properties en la raíz del repo.
   sonarqube:
     name: SonarQube Scan
     runs-on: ubuntu-latest
     needs: [build-and-test-motor, test-backend]
-    if: false
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
         with:

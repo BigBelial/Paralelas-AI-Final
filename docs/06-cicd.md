@@ -1,31 +1,48 @@
 # 06 — CI/CD y Calidad de Código
 
-## Workflows en `.github/workflows/`
+## Workflow en `.github/workflows/`
 
-| Archivo | Propósito |
+Todo el pipeline está descrito en YAML en [`ci.yml`](../.github/workflows/ci.yml),
+con cuatro jobs:
+
+| Job | Qué hace |
 |---|---|
-| [`ci.yml`](../.github/workflows/ci.yml) | Compila el motor C++, corre `pytest` del backend, construye y publica imágenes Docker, y dispara SonarQube. |
+| `build-and-test-motor` | Compila el motor C++ con CMake + OpenMP, corre los tests unitarios (`ctest`) y un *smoke* de los dos algoritmos. |
+| `test-backend` | Instala dependencias y corre `pytest` del backend. |
+| `docker-images` | Construye las 3 imágenes y, en push a `main`/`master`, las publica en GHCR con tag inmutable. |
+| `sonarqube` | Ejecuta el escáner de SonarCloud declarado en YAML. |
 
 ## Pipeline
 
 ```mermaid
 flowchart LR
-    push[Push / PR a main] --> checkout[Checkout]
-    checkout --> build_motor[Build motor C++<br/>CMake + OpenMP]
-    checkout --> test_back[pytest backend]
-    build_motor --> docker[Build & push<br/>imágenes Docker]
-    test_back --> docker
-    docker --> sonar[SonarQube Scan]
-    sonar --> gate{Quality<br/>Gate}
+    push[Push / PR a main] --> motor[Build & test motor<br/>CMake + OpenMP + ctest]
+    push --> back[pytest backend]
+    motor --> imgs[Build imágenes Docker]
+    back --> imgs
+    imgs -->|solo en push| ghcr[Publicar en GHCR<br/>tag = SHA]
+    motor --> sonar[SonarCloud Scan]
+    back --> sonar
+    sonar --> gate{Quality Gate}
     gate -->|pasa| ok[Build verde]
     gate -->|falla| fail[Build rojo]
 ```
 
-## Integración con SonarQube
+## Publicación de imágenes
 
-La integración está **declarada en YAML** dentro del workflow, **no instalada como plugin** desde el marketplace de GitHub (requisito explícito de la rúbrica).
+En pull requests solo se **construyen** las imágenes (validación); en push a la
+rama principal se **publican** a GHCR. El tag es el SHA del commit
+(`ghcr.io/<owner>/<repo>/mancala-<componente>:<sha>`), nunca `latest`, para que el
+despliegue sea reproducible. El prefijo del repositorio se pasa a minúsculas
+porque GHCR no admite mayúsculas en el nombre.
 
-Snippet relevante:
+## Integración con SonarCloud
+
+Declarada **en YAML** con `sonarsource/sonarqube-scan-action@v2`, **no** como
+plugin del marketplace (requisito explícito de la rúbrica). La configuración del
+proyecto vive en [`sonar-project.properties`](../sonar-project.properties) en la
+raíz: claves del proyecto, rutas de fuentes (`motor/src`, `backend/app`,
+`frontend/public`), rutas de tests y exclusiones.
 
 ```yaml
 - name: SonarQube Scan
@@ -35,11 +52,16 @@ Snippet relevante:
     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 ```
 
-Los secretos `SONAR_TOKEN` y `SONAR_HOST_URL` se configuran como *Repository secrets* en GitHub.
+Para activarlo, configurar como *Repository secrets* en GitHub:
+
+- `SONAR_TOKEN`: token del proyecto en SonarCloud.
+- `SONAR_HOST_URL`: `https://sonarcloud.io`.
+
+Y ajustar `sonar.projectKey` / `sonar.organization` en `sonar-project.properties`
+a los valores reales del grupo.
 
 ## Evidencia
 
-> **Pendiente**: capturas de:
-> - Ejecuciones exitosas del workflow en GitHub Actions.
-> - Resultado del Quality Gate de Sonar.
-> - Cobertura de pruebas reportada.
+> Adjuntar aquí las capturas de:
+> - Una ejecución del workflow en verde (los 4 jobs) en la pestaña Actions.
+> - El Quality Gate de SonarCloud (pasando) y el resumen de issues/cobertura.
