@@ -83,6 +83,48 @@ Acceso tras aplicar los manifiestos:
 > Recuerda ajustar `frontend/public/config.js` para que el navegador apunte al
 > backend en `http://<IP-del-nodo>:30080` cuando uses NodePort (ver el README de
 > la raíz).
->
-> Adjuntar aquí la captura de `kubectl get pods,svc -n mancala` con todo en
-> `Running`/`Ready` como evidencia del despliegue local.
+
+### Evidencia del despliegue local
+
+Salida real tras aplicar los manifiestos en un clúster `kind` (`kindest/node:v1.31.0`).
+Backend con 3 réplicas, motor con 2 y frontend con 1, todos `Running`/`Ready`:
+
+```text
+$ kubectl get deploy -n mancala
+NAME       READY   UP-TO-DATE   AVAILABLE   AGE
+backend    3/3     3            3           18s
+frontend   1/1     1            1           18s
+motor      2/2     2            2           18s
+
+$ kubectl get pods,svc -n mancala -o wide
+NAME                            READY   STATUS    RESTARTS   AGE   IP            NODE
+pod/backend-7d54b4c875-7528l    1/1     Running   0          18s   10.244.0.4    mancala-control-plane
+pod/backend-7d54b4c875-hsdvx    1/1     Running   0          18s   10.244.0.5    mancala-control-plane
+pod/backend-7d54b4c875-mw6rg    1/1     Running   0          18s   10.244.0.6    mancala-control-plane
+pod/frontend-55599c89dc-r7bvp   1/1     Running   0          18s   10.244.0.9    mancala-control-plane
+pod/motor-56f996db6d-cl8h2      1/1     Running   0          18s   10.244.0.8    mancala-control-plane
+pod/motor-56f996db6d-dtqgd      1/1     Running   0          18s   10.244.0.10   mancala-control-plane
+
+NAME                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE   SELECTOR
+service/backend-svc    NodePort    10.96.109.39    <none>        8000:30080/TCP   18s   app=backend
+service/frontend-svc   NodePort    10.96.211.255   <none>        80:30088/TCP     18s   app=frontend
+service/motor-svc      ClusterIP   10.96.40.107    <none>        9000/TCP         18s   app=motor
+```
+
+Captura de la misma salida en el clúster `kind`:
+
+![kubectl get pods,svc,deploy en el clúster local](img/Salida.png)
+
+Verificación funcional end-to-end a través del `Service` del backend
+(`kubectl -n mancala port-forward svc/backend-svc 18000:8000`). El backend
+resuelve el motor por la red interna del clúster (`motor-svc:9000`) y la jugada
+se calcula correctamente:
+
+```text
+$ curl http://localhost:18000/readyz
+{"status":"ready","motor":"http://motor-svc:9000"}   # HTTP 200
+
+$ curl -X POST http://localhost:18000/move -H 'Content-Type: application/json' \
+    -d '{"board":[4,4,4,4,4,4,0,4,4,4,4,4,4,0],"side":0,"depth":8,"threads":2}'
+{"move":2,"evaluation":4.0,"elapsed_ms":1,"stats":{"nodes":38852,"prunes":10796},"threads_used":2}
+```
