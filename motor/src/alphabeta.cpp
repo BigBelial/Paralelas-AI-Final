@@ -77,16 +77,23 @@ AlphaBetaResult search_alphabeta(const Board& root, const AlphaBetaConfig& cfg) 
     }
 
     if (cfg.threads <= 1) {
+        // Alfa-Beta secuencial verdadero: la cota α se COMPARTE entre los hijos
+        // de la raíz. El mejor valor encontrado hasta ahora estrecha la ventana
+        // (alpha, +INF) de los siguientes hijos, lo que produce más podas dentro
+        // de sus subárboles. Esta es la línea base T(1) que sí poda en la raíz;
+        // el root parallelism la pierde al dar ventana completa a cada hilo.
         int best_val = -INF;
         int best_move = moves.front();
+        int alpha = -INF;
         for (int m : moves) {
             Board child = root;
             child.apply_move(m);
             std::int64_t n = 0, p = 0;
-            int v = ab(child, cfg.depth - 1, -INF, INF, root_side, cfg.alpha_weight, n, p);
+            int v = ab(child, cfg.depth - 1, alpha, INF, root_side, cfg.alpha_weight, n, p);
             result.nodes += n;
             result.prunes += p;
             if (v > best_val) { best_val = v; best_move = m; }
+            if (best_val > alpha) alpha = best_val;
         }
         result.move = best_move;
         result.evaluation = best_val;
