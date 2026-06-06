@@ -105,24 +105,13 @@
             </div>
         </section>
 
-        <!-- Panel lateral: elección de algoritmo, parámetros y estadísticas -->
+        <!-- Panel lateral: parámetros del bot y estadísticas -->
         <aside class="sidebar">
             <section class="card">
-                <h2>Configuración del bot</h2>
+                <h2>Configuración del bot (Minimax + Alfa-Beta)</h2>
                 <label>
-                    Algoritmo
-                    <select id="algo">
-                        <option value="alphabeta">Alfa-Beta</option>
-                        <option value="mcts">MCTS (UCT)</option>
-                    </select>
-                </label>
-                <label id="depth-row">
                     Profundidad
                     <input id="depth" type="number" value="10" min="1" max="20" />
-                </label>
-                <label id="sims-row" style="display:none;">
-                    Simulaciones
-                    <input id="simulations" type="number" value="20000" min="100" step="500" />
                 </label>
                 <label>
                     Hilos OpenMP

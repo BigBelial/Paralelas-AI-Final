@@ -19,7 +19,6 @@ const BASE = __ENV.BASE || 'http://localhost:8000';
 const payload = JSON.stringify({
   board: [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0],
   side: 0,
-  algo: 'alphabeta',
   depth: 8,
   threads: 2,
 });

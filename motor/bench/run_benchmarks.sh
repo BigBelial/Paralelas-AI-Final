@@ -2,10 +2,9 @@
 #
 # Barrido de benchmarks del motor para la sección de instrumentación del informe.
 #
-# Recorre p in {1,2,4,8} hilos en dos profundidades de Alfa-Beta y dos
-# presupuestos de simulaciones de MCTS, mide el tiempo de pared y calcula el
-# speedup S(p)=T(1)/T(p) y la eficiencia E(p)=S(p)/p. Imprime tablas en Markdown
-# listas para pegar en docs/03-paralelizacion.md.
+# Recorre p in {1,2,4,8} hilos en dos profundidades de Alfa-Beta, mide el tiempo
+# de pared y calcula el speedup S(p)=T(1)/T(p) y la eficiencia E(p)=S(p)/p.
+# Imprime tablas en Markdown listas para pegar en docs/03-paralelizacion.md.
 #
 # Uso:
 #   ./run_benchmarks.sh                 # usa la suite por defecto
@@ -23,7 +22,6 @@ cd "$(dirname "$0")/.."
 POSITIONS="${POSITIONS:-tests/suite.txt}"
 THREADS_LIST=(1 2 4 8)
 AB_DEPTHS=(8 12)
-MCTS_SIMS=(10000 100000)
 
 # Compilar en modo Release.
 echo "Compilando el motor (Release)..." >&2
@@ -33,17 +31,15 @@ BENCH=build/mancala_bench
 
 # Extrae el tiempo (campo 5) de la línea 'CSV,...' que imprime el benchmark.
 run_one() {
-    local algo="$1" param="$2" threads="$3"
-    local flag
-    if [[ "$algo" == "alphabeta" ]]; then flag="--depth"; else flag="--simulations"; fi
-    OMP_NUM_THREADS="$threads" "$BENCH" --algo "$algo" "$flag" "$param" \
+    local depth="$1" threads="$2"
+    OMP_NUM_THREADS="$threads" "$BENCH" --depth "$depth" \
         --threads "$threads" --positions "$POSITIONS" \
         | awk -F, '/^CSV,/ {print $5}'
 }
 
-# Imprime una tabla Markdown T(p)/S(p)/E(p) para una configuración dada.
+# Imprime una tabla Markdown T(p)/S(p)/E(p) para una profundidad dada.
 emit_table() {
-    local algo="$1" param="$2" title="$3"
+    local depth="$1" title="$2"
     echo
     echo "$title"
     echo
@@ -51,7 +47,7 @@ emit_table() {
     echo "|---|---|---|---|"
     local t1=""
     for p in "${THREADS_LIST[@]}"; do
-        local tp; tp="$(run_one "$algo" "$param" "$p")"
+        local tp; tp="$(run_one "$depth" "$p")"
         if [[ -z "$t1" ]]; then t1="$tp"; fi
         awk -v p="$p" -v tp="$tp" -v t1="$t1" \
             'BEGIN { s = t1/tp; e = s/p; printf "| %d | %.3f | %.2f | %.2f |\n", p, tp, s, e }'
@@ -60,8 +56,5 @@ emit_table() {
 
 echo "# Resultados del barrido (pegar en docs/03-paralelizacion.md)"
 for d in "${AB_DEPTHS[@]}"; do
-    emit_table alphabeta "$d" "Alfa-Beta, \`depth=$d\`:"
-done
-for s in "${MCTS_SIMS[@]}"; do
-    emit_table mcts "$s" "MCTS, \`simulations=$s\`:"
+    emit_table "$d" "Alfa-Beta, \`depth=$d\`:"
 done

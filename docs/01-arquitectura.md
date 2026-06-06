@@ -8,9 +8,10 @@ La separación es a nivel de contenedor: el motor **no** se enlaza al backend co
 pybind11 ni ctypes.
 
 1. **Motor** (C++/OpenMP) — proceso de larga vida que expone un servidor HTTP
-   propio. Recibe un estado de tablero más los parámetros de búsqueda y devuelve
-   la jugada óptima junto con sus métricas (nodos, podas, rollouts). Es el
-   componente paralelizado y el sujeto principal de la instrumentación.
+   propio. Recibe un estado de tablero más la profundidad y los hilos de búsqueda
+   y devuelve la jugada óptima junto con sus métricas (nodos explorados y podas).
+   Implementa Minimax con poda Alfa-Beta; es el componente paralelizado y el
+   sujeto principal de la instrumentación.
 2. **Backend** (Python + FastAPI) — wrapper HTTP que expone la API pública al
    frontend, valida la entrada con `pydantic` y delega el cálculo al motor por la
    red interna. No ejecuta lógica de juego: solo valida, reenvía y traduce
@@ -62,17 +63,16 @@ rechaza con **HTTP 422** antes de tocar el motor.
 | `POST` | `/move` | Calcula la jugada óptima para un estado dado. |
 | `GET` | `/healthz` | Liveness probe: el proceso del backend está vivo. |
 | `GET` | `/readyz` | Readiness probe: 200 solo si el motor es alcanzable. |
-| `GET` | `/metrics` | Métricas del backend en texto plano (formato Prometheus). |
+| `GET` | `/metrics` | Métricas agregadas del motor (nodos visitados y podas) en texto plano (formato Prometheus). |
 
 ### Schema de `POST /move`
 
-Request:
+Request (contrato de la sección 2.3 de la especificación):
 
 ```json
 {
   "board": [4,4,4,4,4,4,0, 4,4,4,4,4,4,0],
   "side": 0,
-  "algo": "alphabeta",
   "depth": 12,
   "threads": 4
 }
@@ -80,42 +80,31 @@ Request:
 
 - `board`: arreglo de **14 enteros** no negativos, en el orden canónico de arriba.
 - `side`: `0` o `1` — jugador al que le toca mover.
-- `algo`: `"alphabeta"` | `"mcts"`.
-- `depth`: obligatorio si `algo == "alphabeta"` (1..64).
-- `simulations`: obligatorio si `algo == "mcts"` (≥ 1).
+- `depth`: profundidad de búsqueda de Minimax + Alfa-Beta (obligatorio, 1..64).
 - `threads`: número de hilos OpenMP a usar (1..64).
 
-Response (Alfa-Beta):
+Response:
 
 ```json
 {
   "move": 3,
   "evaluation": 7,
   "elapsed_ms": 124,
-  "stats": { "algo": "alphabeta", "nodes": 1845210, "prunes": 312088 },
+  "stats": { "nodes": 1845210, "prunes": 312088 },
   "threads_used": 4
 }
 ```
 
-Response (MCTS):
-
-```json
-{
-  "move": 3,
-  "evaluation": 0.62,
-  "elapsed_ms": 118,
-  "stats": { "algo": "mcts", "rollouts": 100000, "tree_depth_avg": 14.3, "win_rate": 0.62 },
-  "threads_used": 4
-}
-```
+- `stats.nodes`: nodos del árbol explorados por el motor en esta jugada.
+- `stats.prunes`: podas Alfa-Beta efectuadas en esta jugada.
 
 > Los números de los ejemplos son ilustrativos del formato de la respuesta, no
 > resultados medidos. Las mediciones reales están en
 > [03-paralelizacion.md](03-paralelizacion.md).
 
-Códigos HTTP usados: `200` éxito, `400` falta `depth`/`simulations` según el
-algoritmo, `422` schema inválido (longitud del tablero, negativos, tipos),
-`500` error interno, `503` motor no disponible o caído.
+Códigos HTTP usados: `200` éxito, `400` falta `depth` o es inválido, `422` schema
+inválido (longitud del tablero, negativos, tipos), `500` error interno, `503`
+motor no disponible o caído.
 
 ### Diagrama de secuencia de una petición
 
@@ -129,7 +118,7 @@ sequenceDiagram
     N->>B: POST /move (JSON)
     B->>B: Validación pydantic (422 si falla)
     B->>M: POST /move (JSON, red interna)
-    M->>M: Búsqueda Alfa-Beta / MCTS (OpenMP)
+    M->>M: Búsqueda Minimax + Alfa-Beta (OpenMP)
     M-->>B: 200 { move, evaluation, stats }
     B-->>N: 200 { move, evaluation, stats }
 ```

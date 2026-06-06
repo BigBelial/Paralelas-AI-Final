@@ -4,8 +4,8 @@
 // El bot es el jugador 1 (lado superior, kalaha izquierdo).
 //
 // Reglas Kalah replicadas en JS para aplicar el movimiento humano sin
-// ida-y-vuelta al backend. El bot juega vía POST /move del backend con el
-// algoritmo y parámetros configurados en el panel.
+// ida-y-vuelta al backend. El bot juega vía POST /move del backend con
+// Minimax + Alfa-Beta a la profundidad y los hilos configurados en el panel.
 
 const API_BASE = window.MANCALA_API_BASE || `http://${location.hostname}:8000`;
 
@@ -231,16 +231,12 @@ async function scheduleBotTurn() {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function askBackendForMove() {
-    const algo = $('algo').value;
-    const threads = Number($('threads').value);
     const payload = {
         board: [...state.board],
         side: BOT,
-        algo,
-        threads,
+        depth: Number($('depth').value),
+        threads: Number($('threads').value),
     };
-    if (algo === 'alphabeta') payload.depth = Number($('depth').value);
-    else payload.simulations = Number($('simulations').value);
 
     const resp = await fetch(`${API_BASE}/move`, {
         method: 'POST',
@@ -266,16 +262,12 @@ function updateStatsPanel(move) {
         ? move.evaluation.toFixed(3) : '—';
     $('stat-time').textContent = `${move.elapsed_ms} ms (${move.threads_used} hilos)`;
     const s = move.stats || {};
-    if (s.algo === 'alphabeta') {
-        $('stat-extra').textContent = `${s.nodes.toLocaleString()} nodos · ${s.prunes.toLocaleString()} podas`;
-    } else if (s.algo === 'mcts') {
-        $('stat-extra').textContent = `${s.rollouts.toLocaleString()} rollouts · prof. ${s.tree_depth_avg.toFixed(1)}`;
-    } else {
-        $('stat-extra').textContent = '—';
-    }
+    $('stat-extra').textContent = (typeof s.nodes === 'number' && typeof s.prunes === 'number')
+        ? `${s.nodes.toLocaleString()} nodos · ${s.prunes.toLocaleString()} podas`
+        : '—';
 }
 
-// Controles de la interfaz: reinicio y cambio de algoritmo.
+// Controles de la interfaz: reinicio de la partida.
 
 function reset() {
     state.board = initialBoard();
@@ -293,21 +285,9 @@ function reset() {
     render();
 }
 
-function setupAlgoToggle() {
-    const algoSel = $('algo');
-    const onChange = () => {
-        const isAB = algoSel.value === 'alphabeta';
-        $('depth-row').style.display = isAB ? '' : 'none';
-        $('sims-row').style.display = isAB ? 'none' : '';
-    };
-    algoSel.addEventListener('change', onChange);
-    onChange();
-}
-
 // Arranque: registrar listeners y comenzar una partida nueva.
 
 setupBoardClicks();
-setupAlgoToggle();
 $('btn-reset').addEventListener('click', reset);
 $('modal-replay').addEventListener('click', reset);
 reset();

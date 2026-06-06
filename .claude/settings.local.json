@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(dir /b \"c:\\\\Users\\\\juanj\\\\OneDrive\\\\Escritorio\\\\Final IA y Paralelas\")",
-      "PowerShell(docker build -t mancala-motor:dev .\\\\motor 2>&1)"
-    ]
-  }
-}

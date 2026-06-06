@@ -7,6 +7,7 @@ La separación de contenedores es a nivel de red, no de proceso.
 from __future__ import annotations
 
 import os
+import threading
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Literal, Optional
 
@@ -61,18 +62,19 @@ app.add_middleware(
 
 
 # --- Schemas ---
-
-Algo = Literal["alphabeta", "mcts"]
+# Contrato de la especificación (sección 2.3):
+#   POST /move recibe { board, side, depth, threads }
+#   responde       { move, evaluation, elapsed_ms, stats:{nodes,prunes}, threads_used }
 
 
 class MoveRequest(BaseModel):
     board: list[int] = Field(..., min_length=14, max_length=14,
                              description="14 enteros: 12 hoyos + 2 kalahas en orden canónico.")
     side: Literal[0, 1] = Field(..., description="Jugador al que le toca mover.")
-    algo: Algo
-    depth: Optional[int] = Field(default=None, ge=1, le=64)
-    simulations: Optional[int] = Field(default=None, ge=1)
-    threads: int = Field(default=1, ge=1, le=64)
+    depth: int = Field(..., ge=1, le=64,
+                       description="Profundidad de búsqueda de Minimax + Alfa-Beta.")
+    threads: int = Field(default=1, ge=1, le=64,
+                         description="Número de hilos OpenMP del motor.")
 
     @field_validator("board")
     @classmethod
@@ -82,17 +84,37 @@ class MoveRequest(BaseModel):
         return v
 
 
+class MoveStats(BaseModel):
+    nodes: int
+    prunes: int
+
+
 class MoveResponse(BaseModel):
     move: int
     evaluation: float
     elapsed_ms: int
-    stats: dict
+    stats: MoveStats
     threads_used: int
 
 
 # --- Cliente HTTP al motor ---
 
 _client: Optional[httpx.AsyncClient] = None
+
+# --- Métricas agregadas del motor (nodos visitados y podas) ---
+# Se acumulan a partir del bloque `stats` que devuelve el motor en cada /move.
+_metrics_lock = threading.Lock()
+_total_moves = 0
+_total_nodes = 0
+_total_prunes = 0
+
+
+def _record_motor_stats(stats: dict) -> None:
+    global _total_moves, _total_nodes, _total_prunes
+    with _metrics_lock:
+        _total_moves += 1
+        _total_nodes += int(stats.get("nodes", 0))
+        _total_prunes += int(stats.get("prunes", 0))
 
 
 async def _motor_healthy() -> bool:
@@ -123,28 +145,37 @@ async def readyz() -> dict:
 
 @app.get("/metrics")
 def metrics() -> Response:
+    """Métricas agregadas del motor en formato Prometheus (texto plano).
+
+    Acumula los nodos explorados y las podas Alfa-Beta reportadas por el motor
+    en cada `POST /move` desde el arranque del proceso.
+    """
+    with _metrics_lock:
+        moves, nodes, prunes = _total_moves, _total_nodes, _total_prunes
     body = (
         "# HELP mancala_backend_info Información del backend.\n"
         "# TYPE mancala_backend_info gauge\n"
         f'mancala_backend_info{{version="0.2.0",motor="{MOTOR_BASE}"}} 1\n'
+        "# HELP mancala_motor_moves_total Jugadas calculadas por el motor.\n"
+        "# TYPE mancala_motor_moves_total counter\n"
+        f"mancala_motor_moves_total {moves}\n"
+        "# HELP mancala_motor_nodes_total Nodos del árbol explorados por el motor.\n"
+        "# TYPE mancala_motor_nodes_total counter\n"
+        f"mancala_motor_nodes_total {nodes}\n"
+        "# HELP mancala_motor_prunes_total Podas Alfa-Beta efectuadas por el motor.\n"
+        "# TYPE mancala_motor_prunes_total counter\n"
+        f"mancala_motor_prunes_total {prunes}\n"
     )
     return Response(content=body, media_type="text/plain; charset=utf-8")
 
 
 @app.post("/move", response_model=MoveResponse)
 async def move(req: MoveRequest) -> MoveResponse:
-    if req.algo == "alphabeta" and req.depth is None:
-        raise HTTPException(status_code=400,
-                            detail="depth es obligatorio para alphabeta")
-    if req.algo == "mcts" and req.simulations is None:
-        raise HTTPException(status_code=400,
-                            detail="simulations es obligatorio para mcts")
-
     if _client is None:
         raise HTTPException(status_code=503, detail="cliente HTTP del motor no inicializado")
 
     # Reenviar tal cual el JSON al motor.
-    payload: dict = req.model_dump(exclude_none=True)
+    payload: dict = req.model_dump()
     try:
         r = await _client.post("/move", json=payload)
     except httpx.HTTPError as e:
@@ -157,4 +188,6 @@ async def move(req: MoveRequest) -> MoveResponse:
         # Propagar el error del motor con el mismo código si aplica.
         raise HTTPException(status_code=r.status_code, detail=r.text)
 
-    return MoveResponse(**r.json())
+    data = r.json()
+    _record_motor_stats(data.get("stats", {}))
+    return MoveResponse(**data)

@@ -34,9 +34,10 @@ dist/
 .npm/
 .parcel-cache/
 
-# --- Editores / IDEs ---
+# --- Editores / IDEs / herramientas ---
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~

@@ -1,11 +1,9 @@
 #pragma once
 
 // Parser/serializador JSON minimalista, lo justo para el contrato del motor:
-//   request : { "board":[...14...], "side":0|1, "algo":"alphabeta"|"mcts",
-//               "depth":N?, "simulations":N?, "threads":N?,
-//               "alpha_weight":F?, "c_uct":F? }
+//   request : { "board":[...14...], "side":0|1, "depth":N, "threads":N? }
 //   response: { "move":N, "evaluation":F, "elapsed_ms":N,
-//               "stats":{...}, "threads_used":N }
+//               "stats":{ "nodes":N, "prunes":N }, "threads_used":N }
 //
 // No pretende ser un parser JSON completo: rechaza estructuras anidadas
 // arbitrarias, comentarios, escapes Unicode, etc. Suficiente para el

@@ -80,38 +80,6 @@ producir el **mismo valor (y el mismo movimiento óptimo)** que Minimax sin poda
 Esta equivalencia es uno de los criterios de la rúbrica y se verifica en las
 pruebas unitarias (ver más abajo).
 
-## Algoritmo adicional — Monte Carlo Tree Search (MCTS) con UCT
-
-Además del algoritmo exigido se implementó MCTS (`motor/src/mcts.cpp`) como
-segundo motor de búsqueda, útil para comparar dos enfoques de paralelización.
-Es una búsqueda estocástica *anytime* que no necesita heurística: valora cada
-jugada con simulaciones aleatorias (rollouts) hasta el final.
-
-### Política de selección UCT
-
-$$
-UCT(n) = \frac{w_n}{N_n} + c \cdot \sqrt{\frac{\ln N_{\text{padre}}}{N_n}}
-$$
-
-con $w_n$ las victorias acumuladas en simulaciones que pasaron por $n$, $N_n$ el
-número de visitas a $n$ y $c$ la constante de exploración (por defecto
-$c = \sqrt{2}$).
-
-### Las cuatro fases
-
-1. **Selección** — descender por UCT hasta una hoja.
-2. **Expansión** — agregar un hijo no probado.
-3. **Simulación** — jugar al azar hasta el final del juego.
-4. **Retropropagación** — actualizar $w$ y $N$ en todo el camino recorrido.
-
-La jugada elegida es la del hijo de la raíz **más visitado** (criterio estándar).
-
-### Criterio de corrección
-
-MCTS no garantiza el movimiento óptimo: su corrección es **estadística**. Se
-comprueba que devuelve siempre una jugada legal y que, con presupuesto creciente
-de simulaciones, su tasa de coincidencia con la jugada óptima de Alfa-Beta sube.
-
 ## Suite de pruebas unitarias
 
 En `motor/tests/test_runner.cpp` (runner propio, sin framework externo). Cubre:
@@ -123,7 +91,6 @@ En `motor/tests/test_runner.cpp` (runner propio, sin framework externo). Cubre:
   programado aparte en el propio test.
 - **Paralelo = secuencial**: el valor de la búsqueda con 4 hilos coincide con el
   de 1 hilo sobre la misma posición.
-- **MCTS**: devuelve una jugada legal y ejecuta rollouts.
 
 Cómo ejecutarla:
 
@@ -137,7 +104,7 @@ ctest --test-dir build --output-on-failure
 Salida esperada (todas las comprobaciones en verde):
 
 ```text
-[tests] 58/58 pasaron, 0 fallaron
+[tests] 56/56 pasaron, 0 fallaron
 ```
 
 > Evidencia de la equivalencia Alfa-Beta ↔ Minimax: el test

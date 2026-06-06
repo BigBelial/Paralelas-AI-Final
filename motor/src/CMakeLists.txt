@@ -16,7 +16,6 @@ find_package(Threads REQUIRED)
 add_library(mancala_lib STATIC
     board.cpp
     alphabeta.cpp
-    mcts.cpp
     api.cpp
     http_server.cpp
 )

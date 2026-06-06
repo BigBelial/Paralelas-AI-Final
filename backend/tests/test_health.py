@@ -31,24 +31,13 @@ class FakeMotor:
             return httpx.Response(200, json={"status": "ok"})
         if request.url.path == "/move":
             self.last_payload = json.loads(request.content)
-            algo = self.last_payload.get("algo")
-            if algo == "alphabeta":
-                body = {
-                    "move": 2,
-                    "evaluation": 7,
-                    "elapsed_ms": 12,
-                    "stats": {"algo": "alphabeta", "nodes": 100, "prunes": 20},
-                    "threads_used": self.last_payload.get("threads", 1),
-                }
-            else:
-                body = {
-                    "move": 3,
-                    "evaluation": 0.61,
-                    "elapsed_ms": 9,
-                    "stats": {"algo": "mcts", "rollouts": 5000,
-                              "tree_depth_avg": 11.2, "win_rate": 0.61},
-                    "threads_used": self.last_payload.get("threads", 1),
-                }
+            body = {
+                "move": 2,
+                "evaluation": 7,
+                "elapsed_ms": 12,
+                "stats": {"nodes": 100, "prunes": 20},
+                "threads_used": self.last_payload.get("threads", 1),
+            }
             return httpx.Response(200, json=body)
         return httpx.Response(404, json={"error": "not found"})
 
@@ -68,6 +57,10 @@ def client(motor: FakeMotor):
         transport=transport,
         timeout=2.0,
     )
+    # Reiniciar los contadores agregados para que cada test sea determinista.
+    backend_main._total_moves = 0
+    backend_main._total_nodes = 0
+    backend_main._total_prunes = 0
     with TestClient(backend_main.app) as c:
         yield c
     # El lifespan cierra el cliente al salir del with.
@@ -100,46 +93,49 @@ def test_metrics_returns_plain_text(client):
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/plain")
     assert "mancala_backend_info" in r.text
+    # Métricas agregadas del motor exigidas por la spec (nodos y podas).
+    assert "mancala_motor_nodes_total" in r.text
+    assert "mancala_motor_prunes_total" in r.text
 
 
-def test_move_alphabeta_forwards_to_motor(client, motor):
+def test_move_forwards_to_motor(client, motor):
     payload = {
         "board": [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0],
         "side": 0,
-        "algo": "alphabeta",
         "depth": 8,
         "threads": 2,
     }
     r = client.post("/move", json=payload)
     assert r.status_code == 200
     body = r.json()
-    assert body["stats"]["algo"] == "alphabeta"
+    assert body["stats"]["nodes"] == 100
+    assert body["stats"]["prunes"] == 20
     assert body["threads_used"] == 2
     # El payload reenviado al motor debe coincidir con lo que envió el cliente.
-    assert motor.last_payload["algo"] == "alphabeta"
     assert motor.last_payload["depth"] == 8
+    assert motor.last_payload["side"] == 0
+    assert "algo" not in motor.last_payload
 
 
-def test_move_mcts_forwards_to_motor(client, motor):
+def test_move_aggregates_metrics(client):
     payload = {
         "board": [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0],
         "side": 0,
-        "algo": "mcts",
-        "simulations": 5000,
-        "threads": 4,
+        "depth": 8,
+        "threads": 1,
     }
-    r = client.post("/move", json=payload)
-    assert r.status_code == 200
-    body = r.json()
-    assert body["stats"]["algo"] == "mcts"
-    assert motor.last_payload["simulations"] == 5000
+    client.post("/move", json=payload)
+    client.post("/move", json=payload)
+    r = client.get("/metrics")
+    assert "mancala_motor_moves_total 2" in r.text
+    assert "mancala_motor_nodes_total 200" in r.text
+    assert "mancala_motor_prunes_total 40" in r.text
 
 
 def test_move_invalid_board_length(client):
     payload = {
         "board": [4, 4, 4],
         "side": 0,
-        "algo": "alphabeta",
         "depth": 8,
         "threads": 1,
     }
@@ -147,33 +143,20 @@ def test_move_invalid_board_length(client):
     assert r.status_code == 422
 
 
-def test_move_alphabeta_requires_depth(client):
+def test_move_requires_depth(client):
     payload = {
         "board": [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0],
         "side": 0,
-        "algo": "alphabeta",
         "threads": 1,
     }
     r = client.post("/move", json=payload)
-    assert r.status_code == 400
-
-
-def test_move_mcts_requires_simulations(client):
-    payload = {
-        "board": [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0],
-        "side": 0,
-        "algo": "mcts",
-        "threads": 1,
-    }
-    r = client.post("/move", json=payload)
-    assert r.status_code == 400
+    assert r.status_code == 422
 
 
 def test_move_negative_seeds_rejected(client):
     payload = {
         "board": [-1, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0],
         "side": 0,
-        "algo": "alphabeta",
         "depth": 4,
         "threads": 1,
     }

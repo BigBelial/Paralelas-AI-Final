@@ -6,13 +6,13 @@
 > [03-paralelizacion.md](03-paralelizacion.md) y
 > [07-analisis-comparativo.md](07-analisis-comparativo.md): el mejor speedup
 > obtenido en Alfa-Beta a `depth=12` fue **\_\_×** con **8** hilos (eficiencia
-> **\_\_**); MCTS escaló mejor por ser casi *embarrassingly parallel*. En la nube,
-> pasar de 1 a 3 réplicas mejoró el throughput de **\_\_** a **\_\_** req/s.
+> **\_\_**). En la nube, pasar de 1 a 3 réplicas mejoró el throughput de **\_\_** a
+> **\_\_** req/s.
 
 El motor de Kalah(6,4) quedó funcional con Minimax + poda Alfa-Beta (el algoritmo
-exigido) y un segundo motor MCTS, ambos paralelizados con OpenMP, expuestos por un
-backend FastAPI y consumidos por un frontend web, todo separado en tres
-contenedores y orquestado con Kubernetes en local y en la nube.
+exigido) paralelizado con OpenMP, expuesto por un backend FastAPI y consumido por
+un frontend web, todo separado en tres contenedores y orquestado con Kubernetes en
+local y en la nube.
 
 ## Limitaciones encontradas
 
@@ -20,9 +20,6 @@ contenedores y orquestado con Kubernetes en local y en la nube.
   hilos, la versión paralela de Alfa-Beta explora más nodos que la secuencial, lo
   que aleja el speedup del ideal. Es la limitación central y está cuantificada en
   [03-paralelizacion.md](03-paralelizacion.md).
-- **Exploración redundante en MCTS**: cada hilo construye su propio árbol, así que
-  varios redescubren las mismas jugadas buenas; escala bien pero desperdicia parte
-  del cómputo.
 - **Latencia de red backend→motor**: separar el motor en su propio contenedor
   (requisito del proyecto) añade un salto de red por jugada frente a enlazarlo en
   el mismo proceso; es el costo de la separación pedagógica.
@@ -51,8 +48,8 @@ contenedores y orquestado con Kubernetes en local y en la nube.
   explorando el primer hijo en secuencial antes de abrir el paralelismo.
 - Añadir una **tabla de transposición** compartida para no reexplorar posiciones
   repetidas.
-- Enriquecer `/metrics` con contadores Prometheus reales del motor (nodos/podas
-  agregados) y un dashboard Grafana.
+- Exponer `/metrics` (que ya agrega nodos/podas del motor) en un dashboard
+  Grafana y añadir histogramas de latencia por jugada.
 - Autoescalado del backend basado en latencia p95 además de CPU.
 
 ## Lecciones aprendidas

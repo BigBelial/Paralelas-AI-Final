@@ -8,7 +8,6 @@
 
 #include "alphabeta.hpp"
 #include "board.hpp"
-#include "mcts.hpp"
 
 static int g_failed = 0;
 static int g_total = 0;
@@ -189,31 +188,6 @@ void test_alphabeta_serial_equals_parallel() {
     CHECK_EQ(r1.evaluation, r4.evaluation);
 }
 
-// Prueba de que MCTS devuelve una jugada legal y ejecuta rollouts.
-
-void test_mcts_converges_to_alphabeta_on_simple_position() {
-    // Posición donde la jugada óptima es clara: el hoyo 2 da turno extra.
-    // MCTS con presupuesto generoso debería preferirlo casi siempre.
-    Board b = Board::initial();
-    AlphaBetaConfig abcfg{8, 0.1, 1};
-    auto ab_r = search_alphabeta(b, abcfg);
-
-    MctsConfig mc;
-    mc.simulations = 20000;
-    mc.threads = 1;
-    mc.seed = 42;
-    auto m_r = search_mcts(b, mc);
-
-    // No exigimos coincidencia exacta, pero el movimiento debe ser legal
-    // y la tasa de victorias razonable.
-    auto legal = b.legal_moves();
-    bool legal_ok = false;
-    for (int m : legal) if (m == m_r.move) { legal_ok = true; break; }
-    CHECK(legal_ok);
-    CHECK(m_r.rollouts > 0);
-    (void)ab_r;
-}
-
 int main() {
     test_initial_board();
     test_legal_moves();
@@ -224,7 +198,6 @@ int main() {
     test_terminal_and_collect();
     test_alphabeta_equals_minimax_serial();
     test_alphabeta_serial_equals_parallel();
-    test_mcts_converges_to_alphabeta_on_simple_position();
 
     std::printf("\n[tests] %d/%d pasaron, %d fallaron\n",
                 g_total - g_failed, g_total, g_failed);

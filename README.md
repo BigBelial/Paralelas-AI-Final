@@ -17,10 +17,8 @@ Fecha de entrega: miércoles, 10 de junio de 2026, 17:58:59 (push a la rama prin
 
 ## Descripción
 
-Motor de juego para **Kalah(6,4)** implementado en C++ con dos algoritmos de búsqueda paralelizados con OpenMP:
-
-- **Minimax con poda Alfa-Beta** (búsqueda adversaria exhaustiva).
-- **Monte Carlo Tree Search (MCTS) con UCT** (búsqueda estocástica).
+Motor de juego para **Kalah(6,4)** implementado en C++ con **Minimax y poda
+Alfa-Beta** (búsqueda adversaria exhaustiva), paralelizado con OpenMP.
 
 Expuesto como servicio HTTP vía wrapper Python/FastAPI, empaquetado en contenedores y orquestado con Kubernetes (local + nube).
 
@@ -70,7 +68,7 @@ Frontend: abrir `frontend/public/index.html` directamente, o servir con `python 
 
 Implementado:
 
-- **Motor C++/OpenMP**: reglas Kalah(6,4), Minimax+Alfa-Beta con root parallelism, MCTS+UCT con root parallelization, servidor HTTP propio, modo benchmark CLI, suite de tests unitarios.
+- **Motor C++/OpenMP**: reglas Kalah(6,4), Minimax+Alfa-Beta con root parallelism, servidor HTTP propio, modo benchmark CLI, suite de tests unitarios.
 - **Backend FastAPI**: API REST con schemas pydantic, CORS explícito, delega al motor por HTTP, 10/10 tests pasan.
 - **Frontend HTML/JS + nginx**: tablero Kalah interactivo que consume `/move`.
 - **Docker Compose**: levanta los 3 contenedores con un comando.

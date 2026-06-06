@@ -5,7 +5,7 @@ Este informe está dividido en 8 archivos Markdown temáticos. Cada archivo es a
 ## Índice
 
 1. [01-arquitectura.md](01-arquitectura.md) — componentes, diagrama Mermaid, API REST, CORS.
-2. [02-motor.md](02-motor.md) — reglas Kalah(6,4), Minimax+Alfa-Beta y MCTS con UCT.
+2. [02-motor.md](02-motor.md) — reglas Kalah(6,4), Minimax con poda Alfa-Beta.
 3. [03-paralelizacion.md](03-paralelizacion.md) — estrategia OpenMP e instrumentación local.
 4. [04-despliegue-local.md](04-despliegue-local.md) — Docker Compose + Kubernetes local.
 5. [05-despliegue-nube.md](05-despliegue-nube.md) — manifiestos YAML del despliegue gestionado.
@@ -17,7 +17,7 @@ Este informe está dividido en 8 archivos Markdown temáticos. Cada archivo es a
 
 | Criterio de la rúbrica | Archivo donde se evalúa |
 |---|---|
-| Motores de Mancala: corrección | [02-motor.md](02-motor.md) |
+| Motor de Mancala: corrección | [02-motor.md](02-motor.md) |
 | Paralelización con OpenMP | [03-paralelizacion.md](03-paralelizacion.md) |
 | Instrumentación local | [03-paralelizacion.md](03-paralelizacion.md) |
 | Separación de componentes | [01-arquitectura.md](01-arquitectura.md) |

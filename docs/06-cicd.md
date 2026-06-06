@@ -7,7 +7,7 @@ con cuatro jobs:
 
 | Job | Qué hace |
 |---|---|
-| `build-and-test-motor` | Compila el motor C++ con CMake + OpenMP, corre los tests unitarios (`ctest`) y un *smoke* de los dos algoritmos. |
+| `build-and-test-motor` | Compila el motor C++ con CMake + OpenMP, corre los tests unitarios (`ctest`) y un *smoke* del benchmark de Alfa-Beta. |
 | `test-backend` | Instala dependencias y corre `pytest` del backend. |
 | `docker-images` | Construye las 3 imágenes y, en push a `main`/`master`, las publica en GHCR con tag inmutable. |
 | `sonarqube` | Ejecuta el escáner de SonarCloud declarado en YAML. |
@@ -38,11 +38,12 @@ porque GHCR no admite mayúsculas en el nombre.
 
 ## Integración con SonarCloud
 
-Declarada **en YAML** con `sonarsource/sonarqube-scan-action@v2`, **no** como
-plugin del marketplace (requisito explícito de la rúbrica). La configuración del
-proyecto vive en [`sonar-project.properties`](../sonar-project.properties) en la
-raíz: claves del proyecto, rutas de fuentes (`motor/src`, `backend/app`,
-`frontend/public`), rutas de tests y exclusiones.
+Declarada **íntegramente en YAML** con `sonarsource/sonarqube-scan-action@v2`,
+**no** como plugin del marketplace (requisito explícito de la rúbrica). Toda la
+configuración del proyecto se pasa como argumentos `-Dsonar.*` al scanner dentro
+del propio workflow (no hay `sonar-project.properties`): claves del proyecto,
+rutas de fuentes (`motor/src`, `backend/app`, `frontend/public`), rutas de tests
+y exclusiones.
 
 El job expone el token a nivel de job y **se salta solo si no hay `SONAR_TOKEN`**,
 para que el CI quede en verde mientras no esté configurado; en cuanto se cargue el
@@ -61,6 +62,14 @@ steps:
   - name: SonarQube Scan
     if: ${{ env.SONAR_TOKEN != '' }}
     uses: sonarsource/sonarqube-scan-action@v2
+    with:
+      args: >
+        -Dsonar.projectKey=mancala-kalah
+        -Dsonar.organization=AJUSTAR-org-slug
+        -Dsonar.sources=motor/src,backend/app,frontend/public
+        -Dsonar.tests=motor/tests,backend/tests
+        -Dsonar.exclusions=**/build/**,**/node_modules/**,**/__pycache__/**
+        -Dsonar.sourceEncoding=UTF-8
 ```
 
 Para activarlo:
@@ -68,8 +77,8 @@ Para activarlo:
 1. Crear el proyecto en SonarCloud y generar un token.
 2. Añadir `SONAR_TOKEN` en *Settings → Secrets and variables → Actions*
    (y `SONAR_HOST_URL` solo si NO se usa SonarCloud, p. ej. un SonarQube propio).
-3. Ajustar `sonar.projectKey` / `sonar.organization` en `sonar-project.properties`
-   a los valores reales del grupo.
+3. Ajustar `sonar.projectKey` / `sonar.organization` en los `args` del workflow
+   [`ci.yml`](../.github/workflows/ci.yml) a los valores reales del grupo.
 
 ## Evidencia
 

@@ -25,17 +25,11 @@ jobs:
       - name: Run unit tests (ctest)
         working-directory: motor
         run: ctest --test-dir build --output-on-failure
-      - name: Smoke bench (alphabeta, 4 threads)
+      - name: Smoke bench (Alfa-Beta, 4 threads)
         working-directory: motor
         run: |
           OMP_NUM_THREADS=4 ./build/mancala_bench \
-              --algo alphabeta --depth 8 --threads 4 \
-              --positions tests/suite.txt
-      - name: Smoke bench (mcts, 4 threads)
-        working-directory: motor
-        run: |
-          OMP_NUM_THREADS=4 ./build/mancala_bench \
-              --algo mcts --simulations 5000 --threads 4 \
+              --depth 8 --threads 4 \
               --positions tests/suite.txt
 
   test-backend:
@@ -102,9 +96,10 @@ jobs:
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.img.outputs.prefix }}/mancala-frontend:${{ github.sha }}
 
-  # Análisis estático con SonarCloud declarado en YAML (no por plugin del
-  # marketplace). Requiere SONAR_TOKEN y SONAR_HOST_URL como Repository secrets
-  # y un sonar-project.properties en la raíz del repo.
+  # Análisis estático con SonarCloud declarado ÍNTEGRAMENTE en YAML (no por plugin
+  # del marketplace y sin sonar-project.properties): toda la configuración del
+  # proyecto se pasa como argumentos -Dsonar.* al scanner. Requiere SONAR_TOKEN
+  # (y opcionalmente SONAR_HOST_URL) como Repository secrets.
   sonarqube:
     name: SonarQube Scan
     runs-on: ubuntu-latest
@@ -122,9 +117,20 @@ jobs:
           fetch-depth: 0
       # Mientras no exista el secret SONAR_TOKEN el escaneo se salta y el job
       # queda en verde; en cuanto se configure, corre automáticamente.
+      # AJUSTAR sonar.projectKey y sonar.organization a los valores reales del grupo.
       - name: SonarQube Scan
         if: ${{ env.SONAR_TOKEN != '' }}
         uses: sonarsource/sonarqube-scan-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=mancala-kalah
+            -Dsonar.organization=AJUSTAR-org-slug
+            -Dsonar.projectName=Motor Paralelo de Mancala (Kalah)
+            -Dsonar.projectVersion=0.2.0
+            -Dsonar.sources=motor/src,backend/app,frontend/public
+            -Dsonar.tests=motor/tests,backend/tests
+            -Dsonar.exclusions=**/build/**,**/node_modules/**,**/__pycache__/**
+            -Dsonar.sourceEncoding=UTF-8
       - name: Sonar omitido (sin SONAR_TOKEN)
         if: ${{ env.SONAR_TOKEN == '' }}
         run: echo "SONAR_TOKEN no está configurado; se omite el escaneo. Añádelo en Settings → Secrets para activarlo."

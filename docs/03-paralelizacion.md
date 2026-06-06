@@ -47,17 +47,6 @@ obtener una buena cota antes de abrir el paralelismo; quedan como trabajo futuro
 (ver [08-conclusiones.md](08-conclusiones.md)). Esta pérdida se cuantifica abajo
 comparando la columna de nodos a 1 hilo contra la de 8 hilos.
 
-## Estrategia para MCTS: paralelización a la raíz (root parallelization)
-
-Para MCTS (`motor/src/mcts.cpp`) se usó **root parallelization**: cada hilo
-construye su **propio árbol** sobre la misma posición raíz con una semilla
-distinta, y al final se **combinan** las estadísticas (visitas y victorias) de los
-hijos de la raíz. No hay sincronización durante la búsqueda, solo una reducción al
-final, por lo que escala casi linealmente. Su costo es la **exploración
-redundante** (cada árbol vuelve a descubrir las mismas jugadas buenas) frente a
-una *tree parallelization* que compartiría un único árbol a cambio de sincronizar
-los contadores con `atomic`/locks y *virtual loss*.
-
 ## Instrumentación
 
 El motor corre en **modo benchmark** sin pasar por el backend, leyendo las
@@ -74,16 +63,10 @@ posiciones de `motor/tests/suite.txt`.
 Por cada par (profundidad, hilos): número de **nodos explorados** y número de
 **podas** efectuadas. La razón nodos(8)/nodos(1) mide la pérdida de podas.
 
-### Específicas de MCTS
-
-Por cada par (simulaciones, hilos): **rollouts** totales y **profundidad media**
-del árbol construido.
-
 ## Barrido experimental
 
 Mediciones para $p \in \{1, 2, 4, 8\}$ hilos, en dos profundidades de Alfa-Beta
-(`depth=8` y `depth=12`) y dos presupuestos de MCTS (`simulations=10000` y
-`100000`). Las tablas siguientes se generan automáticamente con:
+(`depth=8` y `depth=12`). Las tablas siguientes se generan automáticamente con:
 
 ```bash
 cd motor && ./bench/run_benchmarks.sh
@@ -103,15 +86,6 @@ Alfa-Beta, `depth=8`:
 | 8 | _(del script)_ | _(del script)_ | _(del script)_ |
 
 Alfa-Beta, `depth=12`:
-
-| p | T(p) [s] | S(p) | E(p) |
-|---|---|---|---|
-| 1 | _(del script)_ | 1.00 | 1.00 |
-| 2 | _(del script)_ | _(del script)_ | _(del script)_ |
-| 4 | _(del script)_ | _(del script)_ | _(del script)_ |
-| 8 | _(del script)_ | _(del script)_ | _(del script)_ |
-
-MCTS, `simulations=100000`:
 
 | p | T(p) [s] | S(p) | E(p) |
 |---|---|---|---|
@@ -142,7 +116,6 @@ xychart-beta
     y-axis "Speedup S(p)" 0 --> 8
     line "ideal" [1, 2, 4, 8]
     line "Alfa-Beta depth=12" [1, 1, 1, 1]
-    line "MCTS sims=100000" [1, 1, 1, 1]
 ```
 
 La línea `ideal` es la referencia $S(p) = p$. La distancia entre la curva real y
