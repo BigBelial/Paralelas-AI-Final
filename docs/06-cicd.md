@@ -44,21 +44,32 @@ proyecto vive en [`sonar-project.properties`](../sonar-project.properties) en la
 raíz: claves del proyecto, rutas de fuentes (`motor/src`, `backend/app`,
 `frontend/public`), rutas de tests y exclusiones.
 
+El job expone el token a nivel de job y **se salta solo si no hay `SONAR_TOKEN`**,
+para que el CI quede en verde mientras no esté configurado; en cuanto se cargue el
+secret, el escaneo corre automáticamente. Si no se define `SONAR_HOST_URL`, se usa
+`https://sonarcloud.io` por defecto, así que para SonarCloud basta con configurar
+un único secret.
+
 ```yaml
-- name: SonarQube Scan
-  uses: sonarsource/sonarqube-scan-action@v2
-  env:
-    SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+env:
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+steps:
+  - uses: actions/checkout@v4
+    with:
+      fetch-depth: 0
+  - name: SonarQube Scan
+    if: ${{ env.SONAR_TOKEN != '' }}
+    uses: sonarsource/sonarqube-scan-action@v2
 ```
 
-Para activarlo, configurar como *Repository secrets* en GitHub:
+Para activarlo:
 
-- `SONAR_TOKEN`: token del proyecto en SonarCloud.
-- `SONAR_HOST_URL`: `https://sonarcloud.io`.
-
-Y ajustar `sonar.projectKey` / `sonar.organization` en `sonar-project.properties`
-a los valores reales del grupo.
+1. Crear el proyecto en SonarCloud y generar un token.
+2. Añadir `SONAR_TOKEN` en *Settings → Secrets and variables → Actions*
+   (y `SONAR_HOST_URL` solo si NO se usa SonarCloud, p. ej. un SonarQube propio).
+3. Ajustar `sonar.projectKey` / `sonar.organization` en `sonar-project.properties`
+   a los valores reales del grupo.
 
 ## Evidencia
 

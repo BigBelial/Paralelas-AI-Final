@@ -110,12 +110,21 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-test-motor, test-backend]
     if: github.event_name == 'push'
+    # El token se expone a nivel de job para poder consultarlo en el `if` del
+    # paso. Si SONAR_HOST_URL no está definido, se usa SonarCloud por defecto, de
+    # modo que basta con configurar SONAR_TOKEN.
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # Mientras no exista el secret SONAR_TOKEN el escaneo se salta y el job
+      # queda en verde; en cuanto se configure, corre automáticamente.
       - name: SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
         uses: sonarsource/sonarqube-scan-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      - name: Sonar omitido (sin SONAR_TOKEN)
+        if: ${{ env.SONAR_TOKEN == '' }}
+        run: echo "SONAR_TOKEN no está configurado; se omite el escaneo. Añádelo en Settings → Secrets para activarlo."
